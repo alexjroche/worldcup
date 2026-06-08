@@ -8,6 +8,7 @@ from components.db import (
 )
 from components.lock import is_locked, time_until_lock
 from data.teams import GROUPS, ALL_TEAMS, team_display, strip_flag
+from data.players import get_all_players
 
 st.set_page_config(page_title="Predictions — WC2026", page_icon="🎯", layout="wide")
 
@@ -141,13 +142,33 @@ with tab_knockout:
 
     st.divider()
     st.markdown("#### ⚽ Golden Boot — top scorer")
-    golden_boot_val = existing_ko.get("golden_boot", "") if existing_ko else ""
-    golden_boot = st.text_input(
-        "Player name (e.g. Kylian Mbappé)",
-        value=golden_boot_val or "",
+
+    all_players = get_all_players()
+    OTHER = "Other (type below)"
+    player_options = all_players + [OTHER]
+
+    golden_boot_saved = existing_ko.get("golden_boot", "") if existing_ko else ""
+    # Determine if saved value is in the list or custom
+    default_player = golden_boot_saved if golden_boot_saved in all_players else (OTHER if golden_boot_saved else all_players[0])
+
+    golden_boot_sel = st.selectbox(
+        "Select player",
+        options=player_options,
+        index=player_options.index(default_player),
         disabled=locked,
-        key="ko_golden_boot",
+        key="ko_golden_boot_sel",
     )
+
+    # Custom override if "Other" selected
+    if golden_boot_sel == OTHER:
+        golden_boot = st.text_input(
+            "Player name",
+            value=golden_boot_saved if golden_boot_saved not in all_players else "",
+            disabled=locked,
+            key="ko_golden_boot_custom",
+        )
+    else:
+        golden_boot = golden_boot_sel
 
     # Validation
     ko_picks = [strip_flag(winner_sel), strip_flag(finalist_sel), strip_flag(semi1_sel), strip_flag(semi2_sel)]
