@@ -53,13 +53,14 @@ with col_how:
     st.markdown("### How to play")
     st.markdown(
         """
-1. **Register** and set up your profile
-2. **Drag** teams into your predicted group finishing order
-3. **Pick** your tournament winner, finalist, semi-finalists & Golden Boot scorer
-4. **Submit your hot take** — a bold pre-tournament prediction, sealed until kickoff
-5. **Predictions lock** at kickoff on June 11
-6. **Pick match winners** each round as the knockout stages open
-7. Watch your score climb on the leaderboard!
+1. **Register** and set up your profile (name + favourite player)
+2. **Drag** teams into your predicted finishing order for all 12 groups
+3. **Pick** your tournament winner, finalist, two semi-finalists & Golden Boot scorer
+4. **Submit your hot take** — one bold pre-tournament prediction, sealed until kickoff
+5. **Predictions lock** at tournament kickoff on June 11
+6. **Pick match winners** round by round as R32 → R16 → QF → SF → Final open up
+7. **React** to friends' hot takes and check the **Head to Head** page for trash-talk
+8. Watch your score and rank on the live leaderboard!
         """
     )
 
@@ -67,20 +68,30 @@ with col_score:
     st.markdown("### Scoring")
     st.markdown(
         """
+**Group stage** *(max 144 pts)*
 | Prediction | Points |
 |---|---|
-| Exact group position | 3 pts |
-| Correct group zone | 1 pt |
+| Exact finishing position | 3 pts |
+| Right half — top 2 or bottom 2 | 1 pt |
+
+**Pre-tournament picks** *(max 50 pts)*
+| Prediction | Points |
+|---|---|
 | Tournament winner | 20 pts |
-| Finalist | 10 pts |
-| Semi-finalist | 5 pts each |
-| Golden Boot | 10 pts |
-| R32 match pick | 2 pts |
-| R16 match pick | 4 pts |
-| QF match pick | 6 pts |
-| SF match pick | 10 pts |
-| Final match pick | 15 pts |
-| **Maximum possible** | **317 pts** |
+| Finalist (runner-up) | 10 pts |
+| Each semi-finalist (×2) | 5 pts each |
+| Golden Boot scorer | 10 pts |
+
+**Round-by-round match picks** *(max 123 pts)*
+| Round | Per correct pick |
+|---|---|
+| Round of 32 (16 games) | 2 pts |
+| Round of 16 (8 games) | 4 pts |
+| Quarter-finals (4 games) | 6 pts |
+| Semi-finals (2 games) | 10 pts |
+| Final (1 game) | 15 pts |
+
+**Maximum possible: 317 pts**
         """
     )
 
@@ -88,13 +99,17 @@ with col_badges:
     st.markdown("### Badges")
     st.markdown(
         """
+Badges are awarded automatically as results come in.
+
 | Badge | How to earn |
 |---|---|
-| ⭐ Bold Pick | Pick a winner chosen by <10% of players |
-| 🎯 Perfect Group | All 4 positions correct in a group |
-| 🔮 Oracle | Correct winner **and** finalist |
+| ⭐ Bold Pick | Your winner was picked by <10% of players |
+| 🎯 Perfect Group | All 4 positions correct in a group *(stackable)* |
+| 🔮 Oracle | Correct pre-tournament winner **and** finalist |
 | 🐐 Golden Boot | Correct top scorer |
-| 🏅 Top of the Table | Leading after the group stage |
+| 🏅 Top of the Table | Highest score after all group results are in |
+
+Badges are shown on the leaderboard and the badge wall. The ▲/▼ column on the leaderboard shows how many places you moved after each score update.
         """
     )
 
@@ -107,27 +122,33 @@ with feat_col1:
     st.markdown(
         """
 **🗂 Group Stage Predictions**
-Drag and drop all 12 groups into your predicted finishing order. Save each group individually — come back and edit before lockout.
+Drag teams into your predicted finishing order for all 12 groups. Save each group individually and edit any time before June 11 lockout.
+
+**🏆 Pre-tournament Knockout Picks**
+Pick your winner, finalist, two semi-finalists and Golden Boot scorer before the tournament starts. These are locked in at kickoff — bold calls rewarded.
 
 **⚡ Round-by-Round Match Picks**
-After each knockout round draws its matchups, pick the winner of every game. R32 opens after the group stage, then R16, QF, SF and the Final — each unlocked by the admin as real fixtures are confirmed.
+After each round's fixtures are confirmed, pick the winner of every match. Rounds open one at a time: R32 → R16 → QF → SF → Final. More points on the line each round.
 
 **🔥 Hot Takes**
-Submit one bold pre-tournament prediction before June 11. Every hot take is sealed until lockout — then they're all revealed on the Hot Takes wall.
+One bold pre-tournament prediction, sealed until kickoff. Post-lock they're all revealed — react with 🔥 😂 🤦 👏 and call out your mates.
         """
     )
 
 with feat_col2:
     st.markdown(
         """
+**🏟️ Leagues**
+Create a private league and share a 6-character invite code with your friends. Each league has its own leaderboard — your predictions automatically count in every league you join.
+
 **🏆 Live Leaderboard**
-Before lockout: see who's submitted their predictions. After lockout: full points table with a score breakdown per category and gold/silver/bronze row highlighting.
+Pre-lock: submission progress. Post-lock: full scored table with ▲/▼ rank movers after every update, gold/silver/bronze highlights, and a badge column.
 
 **📈 Score Timeline**
-A live line chart showing every player's cumulative points after each stage — watch yourself overtake (or get overtaken) as the tournament progresses.
+A line chart showing every player's cumulative score after each stage — watch the order change as the tournament progresses.
 
-**🏅 Badge Wall**
-Earn badges as results come in. The badge wall on the leaderboard page shows every player's achievements at a glance.
+**⚔️ Head to Head**
+Pick any player and see a full side-by-side breakdown — group predictions, knockout picks, match picks, and who's ahead by how much. Built for banter.
         """
     )
 
@@ -141,10 +162,14 @@ if not user:
     with col2:
         st.page_link("pages/1_Login.py", label="Login", icon="🔑")
 else:
-    cta1, cta2, cta3 = st.columns(3)
+    cta1, cta2, cta3, cta4, cta5 = st.columns(5)
     with cta1:
         st.page_link("pages/4_Predictions.py", label="My predictions", icon="🎯")
     with cta2:
         st.page_link("pages/5_Leaderboard.py", label="Leaderboard", icon="🏆")
     with cta3:
+        st.page_link("pages/10_Leagues.py", label="Leagues", icon="🏟️")
+    with cta4:
         st.page_link("pages/8_Hot_Takes.py", label="Hot takes", icon="🔥")
+    with cta5:
+        st.page_link("pages/9_Head_to_Head.py", label="Head to head", icon="⚔️")

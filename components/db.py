@@ -121,28 +121,33 @@ def save_knockout_prediction(
 # Leaderboard queries
 # ---------------------------------------------------------------------------
 
-def get_leaderboard() -> list[dict]:
-    """Returns profiles joined with scores, sorted by total_points desc."""
+def get_leaderboard(league_id: str | None = None) -> list[dict]:
+    """Returns profiles joined with scores, sorted by total_points desc.
+    Pass league_id to restrict to members of that league."""
     client = get_client()
-    resp = (
+    query = (
         client.table("scores")
         .select("*, profiles(display_name, favourite_player)")
         .order("total_points", desc=True)
-        .execute()
     )
+    if league_id:
+        member_ids = get_league_member_ids(league_id)
+        if not member_ids:
+            return []
+        query = query.in_("user_id", member_ids)
+    resp = query.execute()
     return resp.data or []
 
 
-def get_submission_counts() -> list[dict]:
-    """Returns per-user group submission counts + knockout submitted flag."""
+def get_submission_counts(league_id: str | None = None) -> list[dict]:
+    """Returns per-user group submission counts + knockout submitted flag.
+    Pass league_id to restrict to members of that league."""
     client = get_client()
-    # group counts
     grp = (
         client.table("group_predictions")
         .select("user_id", count="exact")
         .execute()
     )
-    # knockout submitted
     ko = client.table("knockout_predictions").select("user_id").execute()
     ko_set = {r["user_id"] for r in (ko.data or [])}
 
@@ -155,11 +160,16 @@ def get_submission_counts() -> list[dict]:
         counts.setdefault(uid, {"groups": 0, "knockout": False})
         counts[uid]["knockout"] = True
 
-    # join with profiles
+    member_ids: set[str] | None = None
+    if league_id:
+        member_ids = set(get_league_member_ids(league_id))
+
     profile_resp = client.table("profiles").select("id, display_name, favourite_player").execute()
     result = []
     for p in (profile_resp.data or []):
         uid = p["id"]
+        if member_ids is not None and uid not in member_ids:
+            continue
         c = counts.get(uid, {"groups": 0, "knockout": False})
         result.append({
             "display_name": p["display_name"],
@@ -480,3 +490,72 @@ def get_current_ranks() -> dict[str, int]:
         .execute()
     )
     return {r["user_id"]: r["rank"] for r in (resp.data or []) if r.get("rank")}
+
+
+# ---------------------------------------------------------------------------
+# League management
+# ---------------------------------------------------------------------------
+
+def create_league(user_id: str, name: str) -> dict:
+    """Create a new league with a random 6-char invite code; auto-joins creator."""
+    import random, string
+    code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    client = get_client()
+    resp = client.table("leagues").insert({
+        "name": name,
+        "invite_code": code,
+        "created_by": user_id,
+    }).execute()
+    league = resp.data[0]
+    client.table("league_members").insert({
+        "league_id": league["id"],
+        "user_id": user_id,
+    }).execute()
+    return league
+
+
+def get_league_by_code(code: str) -> dict | None:
+    client = get_client()
+    resp = client.table("leagues").select("*").eq("invite_code", code.strip().upper()).execute()
+    return resp.data[0] if resp.data else None
+
+
+def join_league(user_id: str, league_id: str) -> None:
+    client = get_client()
+    client.table("league_members").upsert(
+        {"league_id": league_id, "user_id": user_id},
+        on_conflict="league_id,user_id",
+    ).execute()
+
+
+def leave_league(user_id: str, league_id: str) -> None:
+    client = get_client()
+    client.table("league_members").delete().eq("league_id", league_id).eq("user_id", user_id).execute()
+
+
+def get_user_leagues(user_id: str) -> list[dict]:
+    """Returns leagues the user belongs to, each with a member_count field."""
+    client = get_client()
+    resp = (
+        client.table("league_members")
+        .select("league_id, leagues(id, name, invite_code, created_by)")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    leagues = [r["leagues"] for r in (resp.data or []) if r.get("leagues")]
+    for league in leagues:
+        count_resp = (
+            client.table("league_members")
+            .select("user_id", count="exact")
+            .eq("league_id", league["id"])
+            .execute()
+        )
+        league["member_count"] = count_resp.count or 0
+    return sorted(leagues, key=lambda x: x["name"])
+
+
+def get_league_member_ids(league_id: str) -> list[str]:
+    """Returns list of user_ids in a league."""
+    client = get_client()
+    resp = client.table("league_members").select("user_id").eq("league_id", league_id).execute()
+    return [r["user_id"] for r in (resp.data or [])]

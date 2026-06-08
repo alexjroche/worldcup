@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 from components.auth import validate_session, get_current_user
-from components.db import get_leaderboard, get_submission_counts, get_score_snapshots
+from components.db import get_leaderboard, get_submission_counts, get_score_snapshots, get_user_leagues
 from components.lock import is_locked
 
 st.set_page_config(page_title="Leaderboard — WC2026", page_icon="🏆", layout="wide")
@@ -14,6 +14,21 @@ st.title("🏆 Leaderboard")
 locked = is_locked()
 
 # ---------------------------------------------------------------------------
+# League selector (shown if user is in any leagues)
+# ---------------------------------------------------------------------------
+league_id: str | None = None
+if current_user:
+    my_leagues = get_user_leagues(current_user.id)
+    if my_leagues:
+        options = ["🌍 All players"] + [l["name"] for l in my_leagues]
+        sel = st.selectbox("Viewing", options, key="lb_league_sel")
+        if sel != "🌍 All players":
+            chosen = next(l for l in my_leagues if l["name"] == sel)
+            league_id = chosen["id"]
+        if league_id:
+            st.caption(f"Showing only members of **{sel}**. Switch to 'All players' to see the global leaderboard.")
+
+# ---------------------------------------------------------------------------
 # Pre-lock: submission progress only
 # ---------------------------------------------------------------------------
 if not locked:
@@ -21,7 +36,7 @@ if not locked:
         "Predictions are still open — leaderboard shows submission progress only. "
         "Full scores will appear once the tournament is underway."
     )
-    counts = get_submission_counts()
+    counts = get_submission_counts(league_id=league_id)
     if not counts:
         st.markdown("No players have registered yet — be the first!")
     else:
@@ -39,7 +54,7 @@ if not locked:
 # ---------------------------------------------------------------------------
 # Post-lock: full scored leaderboard
 # ---------------------------------------------------------------------------
-rows = get_leaderboard()
+rows = get_leaderboard(league_id=league_id)
 
 if not rows:
     st.info("No scores yet — check back after the first results are entered.")
