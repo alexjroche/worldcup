@@ -397,8 +397,86 @@ def get_all_hot_takes() -> list[dict]:
     client = get_client()
     resp = (
         client.table("hot_takes")
-        .select("take, created_at, profiles(display_name, favourite_player)")
+        .select("id, take, created_at, profiles(display_name, favourite_player)")
         .order("created_at")
         .execute()
     )
     return resp.data or []
+
+
+# ---------------------------------------------------------------------------
+# Hot take reactions
+# ---------------------------------------------------------------------------
+
+def get_all_reactions() -> list[dict]:
+    """Returns all reaction rows: [{hot_take_id, user_id, emoji}]."""
+    client = get_client()
+    resp = client.table("hot_take_reactions").select("hot_take_id, user_id, emoji").execute()
+    return resp.data or []
+
+
+def toggle_reaction(user_id: str, hot_take_id: str, emoji: str) -> None:
+    client = get_client()
+    existing = (
+        client.table("hot_take_reactions")
+        .select("id")
+        .eq("user_id", user_id)
+        .eq("hot_take_id", hot_take_id)
+        .eq("emoji", emoji)
+        .execute()
+    )
+    if existing.data:
+        client.table("hot_take_reactions").delete().eq("id", existing.data[0]["id"]).execute()
+    else:
+        client.table("hot_take_reactions").insert(
+            {"user_id": user_id, "hot_take_id": hot_take_id, "emoji": emoji}
+        ).execute()
+
+
+# ---------------------------------------------------------------------------
+# Head-to-head helpers
+# ---------------------------------------------------------------------------
+
+def get_all_profiles() -> list[dict]:
+    """Returns all profiles sorted by display_name."""
+    client = get_client()
+    resp = (
+        client.table("profiles")
+        .select("id, display_name, favourite_player")
+        .order("display_name")
+        .execute()
+    )
+    return resp.data or []
+
+
+def get_scores_by_user_id(user_id: str) -> dict | None:
+    client = get_client()
+    resp = client.table("scores").select("*").eq("user_id", user_id).execute()
+    return resp.data[0] if resp.data else None
+
+
+def get_all_user_round_picks(user_id: str) -> dict[str, str]:
+    """Returns {match_id: pick} across all rounds for a user."""
+    client = get_client()
+    resp = (
+        client.table("knockout_match_predictions")
+        .select("match_id, pick")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    return {r["match_id"]: r["pick"] for r in (resp.data or [])}
+
+
+# ---------------------------------------------------------------------------
+# Rank helpers (used by scoring.py)
+# ---------------------------------------------------------------------------
+
+def get_current_ranks() -> dict[str, int]:
+    """Returns {user_id: rank} from the current scores table."""
+    svc = get_service_client()
+    resp = (
+        svc.table("scores")
+        .select("user_id, rank")
+        .execute()
+    )
+    return {r["user_id"]: r["rank"] for r in (resp.data or []) if r.get("rank")}

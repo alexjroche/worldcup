@@ -7,6 +7,7 @@ from components.db import (
     get_all_round_picks_and_results,
     bulk_upsert_scores,
     save_score_snapshot,
+    get_current_ranks,
     get_service_client,
 )
 
@@ -156,7 +157,15 @@ def calculate_scores(snapshot_label: str | None = None) -> int:
         })
 
     if rows:
-        # Strip the helper key before writing to DB
+        # Capture previous ranks before overwriting
+        prev_ranks = get_current_ranks()
+
+        # Assign new ranks by sorting on total
+        rows_sorted = sorted(rows, key=lambda r: r["total_points_calc"], reverse=True)
+        for new_rank, row in enumerate(rows_sorted, 1):
+            row["rank"] = new_rank
+            row["prev_rank"] = prev_ranks.get(row["user_id"], new_rank)
+
         db_rows = [{k: v for k, v in r.items() if k != "total_points_calc"} for r in rows]
         bulk_upsert_scores(db_rows)
         if snapshot_label:

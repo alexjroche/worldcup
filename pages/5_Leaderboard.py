@@ -62,15 +62,21 @@ for i, row in enumerate(rows, 1):
     fav = profile.get("favourite_player", "")
     perfect = row.get("badge_perfect_groups", 0)
 
-    badges = "".join(
-        emoji for field, emoji, _ in BADGE_DEFS if row.get(field)
-    )
+    badges = "".join(emoji for field, emoji, _ in BADGE_DEFS if row.get(field))
     if perfect:
         badges += "🎯" * perfect
+
+    prev = row.get("prev_rank")
+    if prev and prev != i:
+        delta = prev - i
+        mover = f"▲{delta}" if delta > 0 else f"▼{abs(delta)}"
+    else:
+        mover = "—"
 
     you = " 👈" if row.get("user_id") == current_uid else ""
     table.append({
         "Rank": i,
+        "+/-": mover,
         "Player": f"{name}{you}",
         "Badges": badges,
         "Fav player": fav,
