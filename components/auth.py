@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import streamlit as st
-from components.db import get_client, get_profile, upsert_profile
+from components.db import get_client, get_profile, upsert_profile, get_service_client
 
 
 def _init_session() -> None:
@@ -84,6 +84,13 @@ def register(email: str, password: str, display_name: str, favourite_player: str
             if resp.session:
                 st.session_state["user"] = resp.user
                 st.session_state["access_token"] = resp.session.access_token
+                # Trigger creates the row but may not set these fields correctly,
+                # so write them explicitly with the service client.
+                get_service_client().table("profiles").upsert({
+                    "id": resp.user.id,
+                    "display_name": display_name,
+                    "favourite_player": favourite_player,
+                }).execute()
                 _load_profile(resp.user.id)
             return None
         return "Registration failed. Try a different email."
