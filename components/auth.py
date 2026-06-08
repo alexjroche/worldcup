@@ -35,6 +35,9 @@ def validate_session() -> None:
         resp = client.auth.get_user(token)
         if resp and resp.user:
             st.session_state["user"] = resp.user
+            # Re-sync the shared client's auth header so RLS-protected writes
+            # work after a server restart (when the cached client has no session).
+            client.postgrest.auth(token)
             if not st.session_state.get("profile"):
                 _load_profile(resp.user.id)
         else:
