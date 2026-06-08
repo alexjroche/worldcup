@@ -68,9 +68,19 @@ def register(email: str, password: str, display_name: str, favourite_player: str
     """Returns error message string, or None on success."""
     try:
         client = get_client()
-        resp = client.auth.sign_up({"email": email, "password": password})
+        # Pass profile fields as user metadata so the DB trigger can create the
+        # profile row with SECURITY DEFINER (bypassing RLS on first insert).
+        resp = client.auth.sign_up({
+            "email": email,
+            "password": password,
+            "options": {
+                "data": {
+                    "display_name": display_name,
+                    "favourite_player": favourite_player,
+                }
+            },
+        })
         if resp.user:
-            upsert_profile(resp.user.id, display_name, favourite_player)
             if resp.session:
                 st.session_state["user"] = resp.user
                 st.session_state["access_token"] = resp.session.access_token
