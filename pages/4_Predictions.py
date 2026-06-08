@@ -9,6 +9,8 @@ from components.db import (
 from components.lock import is_locked, time_until_lock
 from data.teams import GROUPS, ALL_TEAMS, team_display, strip_flag
 from data.players import get_all_players
+from components.db import get_all_rounds, get_matches_for_round, get_user_round_picks, save_round_picks_bulk
+from components.scoring import ROUND_POINTS
 
 st.set_page_config(page_title="Predictions — WC2026", page_icon="🎯", layout="wide")
 
@@ -38,7 +40,7 @@ st.markdown(f"**Progress:** {groups_done}/12 groups · Knockout: {'✅' if ko_do
 progress = (groups_done + (1 if ko_done else 0)) / 13
 st.progress(progress)
 
-tab_groups, tab_knockout, tab_summary = st.tabs(["🗂 Group Stage", "🏆 Knockout & Golden Boot", "📋 Summary"])
+tab_groups, tab_knockout, tab_rounds, tab_summary = st.tabs(["🗂 Group Stage", "🏆 Knockout & Golden Boot", "⚡ Match Picks", "📋 Summary"])
 
 # ===========================================================================
 # TAB 1: GROUP STAGE
@@ -188,7 +190,89 @@ with tab_knockout:
             st.rerun()
 
 # ===========================================================================
-# TAB 3: SUMMARY
+# TAB 3: MATCH PICKS (round-by-round knockout)
+# ===========================================================================
+with tab_rounds:
+    all_rounds = get_all_rounds()
+    open_rounds = [r for r in all_rounds if r["status"] == "open"]
+    closed_rounds = [r for r in all_rounds if r["status"] == "closed"]
+
+    if not open_rounds and not closed_rounds:
+        st.info("No knockout rounds are open yet — check back after the group stage finishes.")
+    else:
+        # Open rounds — user can submit picks
+        for rnd in open_rounds:
+            rname = rnd["round"]
+            pts_each = ROUND_POINTS.get(rname, 0)
+            st.subheader(f"🟢 {rname} — {pts_each} pts per correct pick")
+
+            matches = get_matches_for_round(rname)
+            existing_picks = get_user_round_picks(uid, rname)
+
+            if not matches:
+                st.info("Matchups not entered yet — check back soon.")
+                continue
+
+            # Collect picks via radio buttons
+            pending_picks: dict[str, str] = {}
+            cols = st.columns(2)
+            for i, match in enumerate(matches):
+                col = cols[i % 2]
+                mid = match["id"]
+                team_a, team_b = match["team_a"], match["team_b"]
+                current_pick = existing_picks.get(mid)
+                options = [team_display(team_a), team_display(team_b)]
+                default_idx = 0
+                if current_pick == team_a:
+                    default_idx = 0
+                elif current_pick == team_b:
+                    default_idx = 1
+
+                with col:
+                    sel = st.radio(
+                        f"Match {match['match_number']}: {team_display(team_a)} vs {team_display(team_b)}",
+                        options=options,
+                        index=default_idx,
+                        key=f"round_{rname}_match_{mid}",
+                        horizontal=True,
+                    )
+                    pending_picks[mid] = strip_flag(sel)
+
+            if st.button(f"Save {rname} picks", key=f"save_round_{rname}", use_container_width=True):
+                payload = [{"match_id": mid, "pick": pick} for mid, pick in pending_picks.items()]
+                save_round_picks_bulk(uid, payload)
+                st.success(f"{rname} picks saved!")
+                st.rerun()
+
+            st.divider()
+
+        # Closed rounds — show results with ✅/❌
+        for rnd in closed_rounds:
+            rname = rnd["round"]
+            pts_each = ROUND_POINTS.get(rname, 0)
+            matches = get_matches_for_round(rname)
+            user_picks = get_user_round_picks(uid, rname)
+
+            correct = sum(
+                1 for m in matches
+                if m.get("winner") and user_picks.get(m["id"]) == m["winner"]
+            )
+            total_m = len(matches)
+
+            with st.expander(f"🔒 {rname} — {correct}/{total_m} correct", expanded=False):
+                for match in matches:
+                    mid = match["id"]
+                    winner = match.get("winner")
+                    pick = user_picks.get(mid, "—")
+                    if not winner:
+                        st.markdown(f"Match {match['match_number']}: {match['team_a']} vs {match['team_b']} — *no result yet*")
+                    elif pick == winner:
+                        st.markdown(f"✅ Match {match['match_number']}: picked **{pick}** — correct! (+{pts_each} pts)")
+                    else:
+                        st.markdown(f"❌ Match {match['match_number']}: picked **{pick}**, actual **{winner}**")
+
+# ===========================================================================
+# TAB 4: SUMMARY
 # ===========================================================================
 with tab_summary:
     st.markdown("### Your full prediction summary")

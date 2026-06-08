@@ -249,3 +249,156 @@ def get_all_predictions_for_scoring() -> tuple[list[dict], list[dict]]:
 def bulk_upsert_scores(scores: list[dict]) -> None:
     svc = get_service_client()
     svc.table("scores").upsert(scores, on_conflict="user_id").execute()
+
+
+# ---------------------------------------------------------------------------
+# Knockout round lifecycle (admin-controlled)
+# ---------------------------------------------------------------------------
+
+ROUND_ORDER = ["R32", "R16", "QF", "SF", "Final"]
+
+
+def get_all_rounds() -> list[dict]:
+    client = get_client()
+    resp = client.table("knockout_rounds").select("*").execute()
+    data = {r["round"]: r for r in (resp.data or [])}
+    return [data[r] for r in ROUND_ORDER if r in data]
+
+
+def set_round_status(round_name: str, status: str) -> None:
+    svc = get_service_client()
+    update = {"status": status}
+    if status == "open":
+        update["opened_at"] = "now()"
+    elif status == "closed":
+        update["closed_at"] = "now()"
+    svc.table("knockout_rounds").update(update).eq("round", round_name).execute()
+
+
+# ---------------------------------------------------------------------------
+# Knockout match management (admin writes, public reads)
+# ---------------------------------------------------------------------------
+
+def get_matches_for_round(round_name: str) -> list[dict]:
+    client = get_client()
+    resp = (
+        client.table("knockout_matches")
+        .select("*")
+        .eq("round", round_name)
+        .order("match_number")
+        .execute()
+    )
+    return resp.data or []
+
+
+def upsert_match(round_name: str, match_number: int, team_a: str, team_b: str) -> None:
+    svc = get_service_client()
+    svc.table("knockout_matches").upsert(
+        {"round": round_name, "match_number": match_number, "team_a": team_a, "team_b": team_b},
+        on_conflict="round,match_number",
+    ).execute()
+
+
+def save_match_result(match_id: str, winner: str) -> None:
+    svc = get_service_client()
+    svc.table("knockout_matches").update({"winner": winner}).eq("id", match_id).execute()
+
+
+# ---------------------------------------------------------------------------
+# Knockout match predictions (user writes, RLS-controlled reads)
+# ---------------------------------------------------------------------------
+
+def get_user_round_picks(user_id: str, round_name: str) -> dict[str, str]:
+    """Returns {match_id: picked_team} for this user and round."""
+    client = get_client()
+    resp = (
+        client.table("knockout_match_predictions")
+        .select("match_id, pick, knockout_matches(round)")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    return {
+        r["match_id"]: r["pick"]
+        for r in (resp.data or [])
+        if r.get("knockout_matches", {}).get("round") == round_name
+    }
+
+
+def save_round_picks_bulk(user_id: str, picks: list[dict]) -> None:
+    """picks = [{"match_id": uuid, "pick": team_name}, ...]"""
+    if not picks:
+        return
+    client = get_client()
+    rows = [{"user_id": user_id, "match_id": p["match_id"], "pick": p["pick"]} for p in picks]
+    client.table("knockout_match_predictions").upsert(
+        rows, on_conflict="user_id,match_id"
+    ).execute()
+
+
+# ---------------------------------------------------------------------------
+# Round scoring queries (service role — reads all users)
+# ---------------------------------------------------------------------------
+
+def get_all_round_picks_and_results() -> tuple[list[dict], list[dict]]:
+    """Returns (all match predictions, all matches with results)."""
+    svc = get_service_client()
+    picks = svc.table("knockout_match_predictions").select("*").execute()
+    matches = svc.table("knockout_matches").select("*").execute()
+    return picks.data or [], matches.data or []
+
+
+# ---------------------------------------------------------------------------
+# Score snapshots (timeline chart)
+# ---------------------------------------------------------------------------
+
+def save_score_snapshot(label: str, rows: list[dict]) -> None:
+    """Insert a snapshot row for every user in rows."""
+    svc = get_service_client()
+    snapshot_rows = [
+        {"snapshot_label": label, "user_id": r["user_id"], "total_points": r.get("total_points_calc", 0)}
+        for r in rows
+    ]
+    if snapshot_rows:
+        svc.table("score_snapshots").insert(snapshot_rows).execute()
+
+
+def get_score_snapshots() -> list[dict]:
+    """Returns all snapshots joined with profile display_names, ordered by created_at."""
+    client = get_client()
+    resp = (
+        client.table("score_snapshots")
+        .select("*, profiles(display_name)")
+        .order("created_at")
+        .execute()
+    )
+    return resp.data or []
+
+
+# ---------------------------------------------------------------------------
+# Hot takes
+# ---------------------------------------------------------------------------
+
+def get_hot_take(user_id: str) -> str | None:
+    client = get_client()
+    resp = client.table("hot_takes").select("take").eq("user_id", user_id).execute()
+    return resp.data[0]["take"] if resp.data else None
+
+
+def save_hot_take(user_id: str, take: str) -> None:
+    client = get_client()
+    client.table("hot_takes").upsert(
+        {"user_id": user_id, "take": take},
+        on_conflict="user_id",
+    ).execute()
+
+
+def get_all_hot_takes() -> list[dict]:
+    """Returns all hot takes joined with display_name, ordered by created_at."""
+    client = get_client()
+    resp = (
+        client.table("hot_takes")
+        .select("take, created_at, profiles(display_name, favourite_player)")
+        .order("created_at")
+        .execute()
+    )
+    return resp.data or []
