@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_sortables import sort_items
 from components.auth import require_auth, get_current_user
 from components.db import (
     get_group_predictions, save_group_prediction,
@@ -42,10 +43,13 @@ tab_groups, tab_knockout, tab_summary = st.tabs(["🗂 Group Stage", "🏆 Knock
 # TAB 1: GROUP STAGE
 # ===========================================================================
 with tab_groups:
-    st.markdown("Drag — or select — the finishing order for each group. Save each group individually.")
+    if locked:
+        st.markdown("Predictions are locked — here are your group picks.")
+    else:
+        st.markdown("Drag teams into the order you think they'll finish. Hit **Save** for each group.")
 
     group_names = list(GROUPS.keys())
-    # Show in 3 columns of 4 groups each
+
     for row_start in range(0, 12, 3):
         cols = st.columns(3)
         for col_idx, col in enumerate(cols):
@@ -59,33 +63,26 @@ with tab_groups:
 
             with col:
                 st.markdown(f"### Group {gname} {saved_badge}")
+
                 default_order = (
                     [existing["position_1"], existing["position_2"], existing["position_3"], existing["position_4"]]
                     if existing else teams
                 )
+                display_order = [team_display(t) for t in default_order]
 
-                picks = []
-                options = [team_display(t) for t in teams]
-                all_valid = True
-
-                for pos in range(4):
-                    label = f"{pos + 1}{'st' if pos == 0 else 'nd' if pos == 1 else 'rd' if pos == 2 else 'th'} place"
-                    default_val = team_display(default_order[pos]) if pos < len(default_order) else options[pos]
-                    sel = st.selectbox(
-                        label,
-                        options=options,
-                        index=options.index(default_val) if default_val in options else pos,
-                        key=f"grp_{gname}_{pos}",
-                        disabled=locked,
+                if locked:
+                    for i, item in enumerate(display_order):
+                        pos_label = ["🥇", "🥈", "🥉", "4️⃣"][i]
+                        st.markdown(f"{pos_label} {item}")
+                else:
+                    sorted_display = sort_items(
+                        display_order,
+                        direction="vertical",
+                        key=f"sort_{gname}",
                     )
-                    picks.append(strip_flag(sel))
+                    picks = [strip_flag(d) for d in sorted_display]
 
-                if len(picks) != len(set(picks)):
-                    st.warning("Each team must appear once.")
-                    all_valid = False
-
-                if not locked:
-                    if st.button(f"Save Group {gname}", key=f"save_grp_{gname}", use_container_width=True, disabled=not all_valid):
+                    if st.button(f"Save Group {gname}", key=f"save_grp_{gname}", use_container_width=True):
                         save_group_prediction(uid, gname, picks[0], picks[1], picks[2], picks[3])
                         existing_groups[gname] = {
                             "position_1": picks[0], "position_2": picks[1],
