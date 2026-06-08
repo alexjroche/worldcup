@@ -96,7 +96,7 @@ for i, row in enumerate(rows, 1):
         "Badges": badges,
         "Fav player": fav,
         "Groups": row.get("group_points", 0),
-        "Pre-KO": row.get("winner_points", 0) + row.get("finalist_points", 0) + row.get("semi_points", 0) + row.get("golden_boot_pts", 0),
+        "Pre-KO": row.get("winner_points", 0) + row.get("finalist_points", 0) + row.get("semi_points", 0) + row.get("golden_boot_pts", 0) + row.get("golden_ball_pts", 0) + row.get("golden_glove_pts", 0),
         "Match Picks": row.get("round_points", 0),
         "Total": row.get("total_points", 0),
     })

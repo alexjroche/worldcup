@@ -120,12 +120,16 @@ opp_ko = get_knockout_prediction(opp_uid)
 ko_results = get_knockout_results()
 
 fields = [
-    ("winner",    "🥇 Tournament Winner", 20),
-    ("finalist",  "🥈 Finalist",          10),
-    ("semi_1",    "4️⃣ Semi-finalist 1",   5),
-    ("semi_2",    "4️⃣ Semi-finalist 2",   5),
-    ("golden_boot","⚽ Golden Boot",       10),
+    ("winner",      "🥇 Tournament Winner", 20),
+    ("finalist",    "🥈 Finalist",          10),
+    ("semi_1",      "4️⃣ Semi-finalist 1",   5),
+    ("semi_2",      "4️⃣ Semi-finalist 2",   5),
+    ("golden_boot", "⚽ Golden Boot",        10),
+    ("golden_ball", "🏅 Golden Ball",        10),
+    ("golden_glove","🧤 Golden Glove",       10),
 ]
+
+_PLAYER_FIELDS = {"golden_boot", "golden_ball", "golden_glove"}
 
 ko_rows = []
 for field, label, max_pts in fields:
@@ -136,7 +140,7 @@ for field, label, max_pts in fields:
     def pts_badge(pick: str, actual_val: str, pts: int) -> str:
         if actual_val == "?" or not pick or pick == "—":
             return ""
-        match = pick.strip().lower() == actual_val.strip().lower() if field == "golden_boot" else pick == actual_val
+        match = pick.strip().lower() == actual_val.strip().lower() if field in _PLAYER_FIELDS else pick == actual_val
         return f" ✅ +{pts}" if match else " ❌"
 
     ko_rows.append({

@@ -101,7 +101,8 @@ def get_knockout_prediction(user_id: str) -> dict | None:
 
 
 def save_knockout_prediction(
-    user_id: str, winner: str, finalist: str, semi_1: str, semi_2: str, golden_boot: str
+    user_id: str, winner: str, finalist: str, semi_1: str, semi_2: str,
+    golden_boot: str = "", golden_ball: str = "", golden_glove: str = "",
 ) -> None:
     client = get_client()
     client.table("knockout_predictions").upsert(
@@ -112,6 +113,8 @@ def save_knockout_prediction(
             "semi_1": semi_1,
             "semi_2": semi_2,
             "golden_boot": golden_boot,
+            "golden_ball": golden_ball,
+            "golden_glove": golden_glove,
         },
         on_conflict="user_id",
     ).execute()
@@ -240,10 +243,20 @@ def get_knockout_results() -> dict | None:
     return resp.data[0] if resp.data else None
 
 
-def save_knockout_results(winner: str, finalist: str, semi_1: str, semi_2: str, golden_boot: str) -> None:
+def save_knockout_results(
+    winner: str, finalist: str, semi_1: str, semi_2: str,
+    golden_boot: str = "", golden_ball: str = "", golden_glove: str = "",
+) -> None:
     svc = get_service_client()
     svc.table("knockout_results").upsert(
-        {"id": 1, "winner": winner, "finalist": finalist, "semi_1": semi_1, "semi_2": semi_2, "golden_boot": golden_boot},
+        {
+            "id": 1,
+            "winner": winner, "finalist": finalist,
+            "semi_1": semi_1, "semi_2": semi_2,
+            "golden_boot": golden_boot,
+            "golden_ball": golden_ball,
+            "golden_glove": golden_glove,
+        },
         on_conflict="id",
     ).execute()
 

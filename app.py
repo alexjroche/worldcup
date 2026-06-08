@@ -74,13 +74,15 @@ with col_score:
 | Exact finishing position | 3 pts |
 | Right half — top 2 or bottom 2 | 1 pt |
 
-**Pre-tournament picks** *(max 50 pts)*
+**Pre-tournament picks** *(max 70 pts)*
 | Prediction | Points |
 |---|---|
 | Tournament winner | 20 pts |
 | Finalist (runner-up) | 10 pts |
 | Each semi-finalist (×2) | 5 pts each |
-| Golden Boot scorer | 10 pts |
+| ⚽ Golden Boot scorer | 10 pts |
+| 🏅 Golden Ball (best player) | 10 pts |
+| 🧤 Golden Glove (best keeper) | 10 pts |
 
 **Round-by-round match picks** *(max 123 pts)*
 | Round | Per correct pick |
@@ -91,7 +93,7 @@ with col_score:
 | Semi-finals (2 games) | 10 pts |
 | Final (1 game) | 15 pts |
 
-**Maximum possible: 317 pts**
+**Maximum possible: 337 pts**
         """
     )
 

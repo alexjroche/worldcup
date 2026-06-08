@@ -51,6 +51,18 @@ def _score_golden_boot(prediction: str, actual: str | None) -> int:
     return 10 if prediction.strip().lower() == actual.strip().lower() else 0
 
 
+def _score_golden_ball(prediction: str, actual: str | None) -> int:
+    if not actual or not prediction:
+        return 0
+    return 10 if prediction.strip().lower() == actual.strip().lower() else 0
+
+
+def _score_golden_glove(prediction: str, actual: str | None) -> int:
+    if not actual or not prediction:
+        return 0
+    return 10 if prediction.strip().lower() == actual.strip().lower() else 0
+
+
 def _score_round_picks(user_picks: list[dict], matches_by_id: dict[str, dict]) -> int:
     total = 0
     for pick in user_picks:
@@ -116,7 +128,7 @@ def calculate_scores(snapshot_label: str | None = None) -> int:
     rows = []
     for uid in all_users:
         gpts = user_group_scores.get(uid, 0)
-        wpts = fpts = spts = gbpts = rpts = 0
+        wpts = fpts = spts = gbpts = gbpts_ball = gbpts_glove = rpts = 0
         bold = oracle = gb_win = False
 
         kp = ko_index.get(uid)
@@ -130,6 +142,8 @@ def calculate_scores(snapshot_label: str | None = None) -> int:
                     ko_results.get("semi_1"), ko_results.get("semi_2"),
                 )
                 gbpts = _score_golden_boot(kp.get("golden_boot", ""), ko_results.get("golden_boot"))
+                gbpts_ball = _score_golden_ball(kp.get("golden_ball", ""), ko_results.get("golden_ball"))
+                gbpts_glove = _score_golden_glove(kp.get("golden_glove", ""), ko_results.get("golden_glove"))
                 oracle = wpts > 0 and fpts > 0
                 gb_win = gbpts > 0
 
@@ -137,7 +151,7 @@ def calculate_scores(snapshot_label: str | None = None) -> int:
             bold = pct < 10.0
 
         rpts = _score_round_picks(user_round_picks.get(uid, []), matches_by_id)
-        total = gpts + wpts + fpts + spts + gbpts + rpts
+        total = gpts + wpts + fpts + spts + gbpts + gbpts_ball + gbpts_glove + rpts
 
         rows.append({
             "user_id": uid,
@@ -146,6 +160,8 @@ def calculate_scores(snapshot_label: str | None = None) -> int:
             "finalist_points": fpts,
             "semi_points": spts,
             "golden_boot_pts": gbpts,
+            "golden_ball_pts": gbpts_ball,
+            "golden_glove_pts": gbpts_glove,
             "round_points": rpts,
             "bold_pick": bold,
             "badge_perfect_groups": user_perfect_groups.get(uid, 0),

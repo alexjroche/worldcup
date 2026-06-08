@@ -8,7 +8,7 @@ from components.db import (
 )
 from components.lock import is_locked, time_until_lock
 from data.teams import GROUPS, ALL_TEAMS, team_display, strip_flag
-from data.players import get_all_players
+from data.players import get_all_players, get_goalkeepers
 from components.db import get_all_rounds, get_matches_for_round, get_user_round_picks, save_round_picks_bulk
 from components.scoring import ROUND_POINTS
 
@@ -40,7 +40,7 @@ st.markdown(f"**Progress:** {groups_done}/12 groups · Knockout: {'✅' if ko_do
 progress = (groups_done + (1 if ko_done else 0)) / 13
 st.progress(progress)
 
-tab_groups, tab_knockout, tab_rounds, tab_summary = st.tabs(["🗂 Group Stage", "🏆 Knockout & Golden Boot", "⚡ Match Picks", "📋 Summary"])
+tab_groups, tab_knockout, tab_rounds, tab_summary = st.tabs(["🗂 Group Stage", "🏆 Knockout & Awards", "⚡ Match Picks", "📋 Summary"])
 
 # ===========================================================================
 # TAB 1: GROUP STAGE
@@ -143,34 +143,38 @@ with tab_knockout:
         )
 
     st.divider()
-    st.markdown("#### ⚽ Golden Boot — top scorer")
+    st.markdown("#### Player Awards")
 
     all_players = get_all_players()
+    all_keepers = get_goalkeepers()
     OTHER = "Other (type below)"
-    player_options = all_players + [OTHER]
 
-    golden_boot_saved = existing_ko.get("golden_boot", "") if existing_ko else ""
-    # Determine if saved value is in the list or custom
-    default_player = golden_boot_saved if golden_boot_saved in all_players else (OTHER if golden_boot_saved else all_players[0])
+    def _award_picker(label: str, saved: str, options: list[str], sel_key: str, custom_key: str) -> str:
+        opts = options + [OTHER]
+        default = saved if saved in options else (OTHER if saved else options[0])
+        sel = st.selectbox(label, opts, index=opts.index(default), disabled=locked, key=sel_key)
+        if sel == OTHER:
+            return st.text_input(
+                "Name", value=saved if saved not in options else "", disabled=locked, key=custom_key
+            )
+        return sel
 
-    golden_boot_sel = st.selectbox(
-        "Select player",
-        options=player_options,
-        index=player_options.index(default_player),
-        disabled=locked,
-        key="ko_golden_boot_sel",
-    )
+    award_col1, award_col2, award_col3 = st.columns(3)
 
-    # Custom override if "Other" selected
-    if golden_boot_sel == OTHER:
-        golden_boot = st.text_input(
-            "Player name",
-            value=golden_boot_saved if golden_boot_saved not in all_players else "",
-            disabled=locked,
-            key="ko_golden_boot_custom",
-        )
-    else:
-        golden_boot = golden_boot_sel
+    with award_col1:
+        st.markdown("**⚽ Golden Boot** — top scorer")
+        boot_saved = existing_ko.get("golden_boot", "") if existing_ko else ""
+        golden_boot = _award_picker("Select player", boot_saved, all_players, "ko_gb_sel", "ko_gb_custom")
+
+    with award_col2:
+        st.markdown("**🏅 Golden Ball** — best player")
+        ball_saved = existing_ko.get("golden_ball", "") if existing_ko else ""
+        golden_ball = _award_picker("Select player", ball_saved, all_players, "ko_ball_sel", "ko_ball_custom")
+
+    with award_col3:
+        st.markdown("**🧤 Golden Glove** — best goalkeeper")
+        glove_saved = existing_ko.get("golden_glove", "") if existing_ko else ""
+        golden_glove = _award_picker("Select goalkeeper", glove_saved, all_keepers, "ko_glove_sel", "ko_glove_custom")
 
     # Validation
     ko_picks = [strip_flag(winner_sel), strip_flag(finalist_sel), strip_flag(semi1_sel), strip_flag(semi2_sel)]
@@ -184,7 +188,7 @@ with tab_knockout:
             save_knockout_prediction(
                 uid,
                 ko_picks[0], ko_picks[1], ko_picks[2], ko_picks[3],
-                golden_boot.strip(),
+                golden_boot.strip(), golden_ball.strip(), golden_glove.strip(),
             )
             st.success("Knockout picks saved!")
             st.rerun()
@@ -312,5 +316,10 @@ with tab_summary:
         col2.metric("Finalist", existing_ko.get("finalist", "—"))
         col1.metric("Semi 1", existing_ko.get("semi_1", "—"))
         col2.metric("Semi 2", existing_ko.get("semi_2", "—"))
+        award_c1, award_c2, award_c3 = st.columns(3)
         if existing_ko.get("golden_boot"):
-            st.metric("Golden Boot", existing_ko["golden_boot"])
+            award_c1.metric("⚽ Golden Boot", existing_ko["golden_boot"])
+        if existing_ko.get("golden_ball"):
+            award_c2.metric("🏅 Golden Ball", existing_ko["golden_ball"])
+        if existing_ko.get("golden_glove"):
+            award_c3.metric("🧤 Golden Glove", existing_ko["golden_glove"])

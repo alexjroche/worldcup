@@ -95,14 +95,22 @@ with tab_ko:
         semi2_sel = st.selectbox("Semi-finalist 2", team_options,
             index=team_options.index(_ko_default("semi_2", 3)), key="res_semi2")
 
-    golden_boot_val = existing_ko_results.get("golden_boot", "") if existing_ko_results else ""
-    golden_boot = st.text_input("Golden Boot (top scorer)", value=golden_boot_val or "", key="res_gb")
+    award_col1, award_col2, award_col3 = st.columns(3)
+    with award_col1:
+        golden_boot_val = existing_ko_results.get("golden_boot", "") if existing_ko_results else ""
+        golden_boot = st.text_input("⚽ Golden Boot (top scorer)", value=golden_boot_val or "", key="res_gb")
+    with award_col2:
+        golden_ball_val = existing_ko_results.get("golden_ball", "") if existing_ko_results else ""
+        golden_ball = st.text_input("🏅 Golden Ball (best player)", value=golden_ball_val or "", key="res_gball")
+    with award_col3:
+        golden_glove_val = existing_ko_results.get("golden_glove", "") if existing_ko_results else ""
+        golden_glove = st.text_input("🧤 Golden Glove (best goalkeeper)", value=golden_glove_val or "", key="res_gglove")
 
     if st.button("Save Knockout Results", use_container_width=True):
         save_knockout_results(
             strip_flag(winner_sel), strip_flag(finalist_sel),
             strip_flag(semi1_sel), strip_flag(semi2_sel),
-            golden_boot.strip(),
+            golden_boot.strip(), golden_ball.strip(), golden_glove.strip(),
         )
         st.success("Knockout results saved!")
         st.rerun()

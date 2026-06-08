@@ -72,3 +72,77 @@ def get_all_players() -> list[str]:
         for player in squad:
             players.append(f"{player} ({team})")
     return sorted(players, key=lambda x: x.split("(")[0].strip())
+
+
+# Curated list of goalkeepers for the Golden Glove selector.
+GOLDEN_GLOVE_KEEPERS: dict[str, list[str]] = {
+    # Group A
+    "Mexico": ["Luis Malagón", "Guillermo Ochoa"],
+    "South Korea": ["Kim Seung-gyu", "Jo Hyeon-woo"],
+    "South Africa": ["Ronwen Williams", "Veli Mothwa"],
+    "Czechia": ["Jindřich Staněk", "Tomáš Vaclík"],
+    # Group B
+    "Canada": ["Milan Borjan", "Maxime Crépeau"],
+    "Switzerland": ["Yann Sommer", "Gregor Kobel"],
+    "Qatar": ["Meshaal Barsham"],
+    "Bosnia-Herzegovina": ["Ibrahim Šehić", "Kenan Pirić"],
+    # Group C
+    "Brazil": ["Alisson", "Ederson"],
+    "Morocco": ["Yassine Bounou", "Munir Mohamedi"],
+    "Haiti": ["Josué Duverger"],
+    "Scotland": ["Angus Gunn", "Craig Gordon"],
+    # Group D
+    "United States": ["Matt Turner", "Patrick Schulte"],
+    "Paraguay": ["Antony Silva", "Gastón Olvedo"],
+    "Australia": ["Mat Ryan", "Joe Gauci"],
+    "Türkiye": ["Mert Günok", "Altay Bayındır"],
+    # Group E
+    "Germany": ["Manuel Neuer", "Marc-André ter Stegen"],
+    "Curaçao": ["Eloy Room"],
+    "Ivory Coast": ["Yahia Fofana", "Ali Badra Sangaré"],
+    "Ecuador": ["Hernán Galíndez", "Alexander Domínguez"],
+    # Group F
+    "Netherlands": ["Bart Verbruggen", "Mark Flekken"],
+    "Japan": ["Shuichi Gonda", "Zion Suzuki"],
+    "Sweden": ["Robin Olsen", "Samuel Brolin"],
+    "Tunisia": ["Aymen Dahmen", "Mouez Hassen"],
+    # Group G
+    "Belgium": ["Koen Casteels", "Thomas Kaminski"],
+    "Egypt": ["Mohamed El-Shenawy", "Ahmed El-Shenawy"],
+    "Iran": ["Alireza Beiranvand", "Hossein Hosseini"],
+    "New Zealand": ["Oli Sail", "Stefan Marinovic"],
+    # Group H
+    "Spain": ["Unai Simón", "David Raya", "Álex Remiro"],
+    "Cape Verde": ["Vozinha", "Patrick Mendes"],
+    "Saudi Arabia": ["Mohammed Al-Owais", "Nawaf Al-Aqidi"],
+    "Uruguay": ["Sergio Rochet", "Gilbert Álvarez"],
+    # Group I
+    "France": ["Mike Maignan", "Alphonse Areola"],
+    "Senegal": ["Edouard Mendy", "Seny Dieng"],
+    "Iraq": ["Jalal Hassan", "Mohammed Hameed"],
+    "Norway": ["Ørjan Nyland", "Rune Jarstein"],
+    # Group J
+    "Argentina": ["Emiliano Martínez", "Geronimo Rulli"],
+    "Algeria": ["Rais M'Bolhi", "Alexandre Oukidja"],
+    "Austria": ["Patrick Pentz", "Alexander Schlager"],
+    "Jordan": ["Yazeed Abulaila", "Ibrahim Shelbaieh"],
+    # Group K
+    "Portugal": ["Diogo Costa", "Rui Patrício"],
+    "Congo DR": ["Lionel Mpasi"],
+    "Uzbekistan": ["Utkir Yusupov", "Eldorbek Suyunov"],
+    "Colombia": ["Camilo Vargas", "David Ospina"],
+    # Group L
+    "England": ["Jordan Pickford", "Nick Pope", "Aaron Ramsdale"],
+    "Croatia": ["Dominik Livaković", "Ivica Ivušić"],
+    "Ghana": ["Lawrence Ati-Zigi", "Joe Wollacott"],
+    "Panama": ["Luis Mejía", "Orlando Mosquera"],
+}
+
+
+def get_goalkeepers() -> list[str]:
+    """Returns a sorted flat list of goalkeepers, prefixed with their team."""
+    keepers = []
+    for team, squad in GOLDEN_GLOVE_KEEPERS.items():
+        for keeper in squad:
+            keepers.append(f"{keeper} ({team})")
+    return sorted(keepers, key=lambda x: x.split("(")[0].strip())
