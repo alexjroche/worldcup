@@ -533,12 +533,20 @@ def get_league_by_code(code: str) -> dict | None:
     return resp.data[0] if resp.data else None
 
 
-def join_league(user_id: str, league_id: str) -> None:
+def join_league(user_id: str, league_id: str, wager_in: bool = False) -> None:
     client = get_client()
     client.table("league_members").upsert(
-        {"league_id": league_id, "user_id": user_id},
+        {"league_id": league_id, "user_id": user_id, "wager_in": wager_in},
         on_conflict="league_id,user_id",
     ).execute()
+
+
+def set_wager_preference(user_id: str, league_id: str, wager_in: bool) -> None:
+    """Update a member's wager opt-in for a specific league."""
+    svc = get_service_client()
+    svc.table("league_members").update(
+        {"wager_in": wager_in}
+    ).eq("league_id", league_id).eq("user_id", user_id).execute()
 
 
 def leave_league(user_id: str, league_id: str) -> None:
@@ -547,15 +555,20 @@ def leave_league(user_id: str, league_id: str) -> None:
 
 
 def get_user_leagues(user_id: str) -> list[dict]:
-    """Returns leagues the user belongs to, each with a member_count field."""
+    """Returns leagues the user belongs to, each with member_count and wager_in."""
     client = get_client()
     resp = (
         client.table("league_members")
-        .select("league_id, leagues(id, name, invite_code, created_by)")
+        .select("league_id, wager_in, leagues(id, name, invite_code, created_by)")
         .eq("user_id", user_id)
         .execute()
     )
-    leagues = [r["leagues"] for r in (resp.data or []) if r.get("leagues")]
+    leagues = []
+    for r in (resp.data or []):
+        if r.get("leagues"):
+            league = dict(r["leagues"])
+            league["wager_in"] = r.get("wager_in", False)
+            leagues.append(league)
     for league in leagues:
         count_resp = (
             client.table("league_members")
@@ -572,3 +585,73 @@ def get_league_member_ids(league_id: str) -> list[str]:
     client = get_client()
     resp = client.table("league_members").select("user_id").eq("league_id", league_id).execute()
     return [r["user_id"] for r in (resp.data or [])]
+
+
+# ---------------------------------------------------------------------------
+# Super-admin helpers (service role only)
+# ---------------------------------------------------------------------------
+
+def admin_get_user_emails() -> dict[str, str]:
+    """Returns {user_id: email} for every registered user."""
+    svc = get_service_client()
+    try:
+        users = svc.auth.admin.list_users()
+        return {u.id: (u.email or "") for u in (users or [])}
+    except Exception:
+        return {}
+
+
+def admin_get_prediction_coverage() -> list[dict]:
+    """Returns per-user prediction completion stats."""
+    svc = get_service_client()
+    profiles = svc.table("profiles").select("id, display_name, favourite_player, created_at").execute()
+
+    grp = svc.table("group_predictions").select("user_id").execute()
+    grp_counts: dict[str, int] = {}
+    for r in (grp.data or []):
+        uid = r["user_id"]
+        grp_counts[uid] = grp_counts.get(uid, 0) + 1
+
+    ko = svc.table("knockout_predictions").select("user_id, golden_boot, golden_ball, golden_glove").execute()
+    ko_map = {r["user_id"]: r for r in (ko.data or [])}
+
+    result = []
+    for p in (profiles.data or []):
+        uid = p["id"]
+        ko_row = ko_map.get(uid, {})
+        result.append({
+            "user_id": uid,
+            "display_name": p["display_name"],
+            "favourite_player": p.get("favourite_player", ""),
+            "created_at": p.get("created_at", ""),
+            "groups_done": grp_counts.get(uid, 0),
+            "ko_done": uid in ko_map,
+            "boot_done": bool(ko_row.get("golden_boot")),
+            "ball_done": bool(ko_row.get("golden_ball")),
+            "glove_done": bool(ko_row.get("golden_glove")),
+        })
+    return result
+
+
+def admin_get_all_leagues() -> list[dict]:
+    """Returns all leagues with member display names and wager preferences."""
+    svc = get_service_client()
+    resp = (
+        svc.table("leagues")
+        .select("id, name, invite_code, created_at, league_members(user_id, wager_in, profiles(display_name))")
+        .order("created_at")
+        .execute()
+    )
+    return resp.data or []
+
+
+def admin_get_all_hot_takes() -> list[dict]:
+    """Returns all hot takes regardless of lock status."""
+    svc = get_service_client()
+    resp = (
+        svc.table("hot_takes")
+        .select("take, created_at, profiles(display_name)")
+        .order("created_at")
+        .execute()
+    )
+    return resp.data or []
