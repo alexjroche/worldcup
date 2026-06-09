@@ -1,32 +1,35 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-from components.auth import validate_session, get_current_user
+from components.auth import require_auth, get_current_user
 from components.db import get_leaderboard, get_submission_counts, get_score_snapshots, get_user_leagues
 from components.lock import is_locked
 
 st.set_page_config(page_title="Leaderboard — WC2026", page_icon="🏆", layout="wide")
 
-validate_session()
+if not require_auth():
+    st.stop()
+
 current_user = get_current_user()
 
 st.title("🏆 Leaderboard")
 locked = is_locked()
 
 # ---------------------------------------------------------------------------
-# League selector (shown if user is in any leagues)
+# League selector — users only see leagues they belong to
 # ---------------------------------------------------------------------------
+my_leagues = get_user_leagues(current_user.id)
+
+if not my_leagues:
+    st.info("You're not in any leagues yet. Join or create one to see the leaderboard.")
+    st.page_link("pages/10_Leagues.py", label="Go to Leagues", icon="🏟️")
+    st.stop()
+
 league_id: str | None = None
-if current_user:
-    my_leagues = get_user_leagues(current_user.id)
-    if my_leagues:
-        options = ["🌍 All players"] + [l["name"] for l in my_leagues]
-        sel = st.selectbox("Viewing", options, key="lb_league_sel")
-        if sel != "🌍 All players":
-            chosen = next(l for l in my_leagues if l["name"] == sel)
-            league_id = chosen["id"]
-        if league_id:
-            st.caption(f"Showing only members of **{sel}**. Switch to 'All players' to see the global leaderboard.")
+options = [l["name"] for l in my_leagues]
+sel = st.selectbox("League", options, key="lb_league_sel")
+chosen = next(l for l in my_leagues if l["name"] == sel)
+league_id = chosen["id"]
 
 # ---------------------------------------------------------------------------
 # Pre-lock: submission progress only
